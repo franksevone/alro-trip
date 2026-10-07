@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/map", "destination": "/map.html" },
+    { "source": "/v2", "destination": "/v2.html" },
+    { "source": "/admin", "destination": "/admin.html" }
+  ]
+}

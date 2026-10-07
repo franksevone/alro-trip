@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>กำหนดการตรวจราชการ ผส.จด. • รูปแบบอินโฟกราฟิก</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Infographic Specific Styling inspired by 28 บ่าย.jpg and 28 เช้า.jpg */
+    .banner-gold {
+      background: linear-gradient(135deg, #fef08a 0%, #facc15 50%, #eab308 100%);
+      color: #713f12;
+      box-shadow: 0 4px 15px -3px rgba(234, 179, 8, 0.3);
+    }
+    .capsule-time {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+    }
+    .node-circle {
+      box-shadow: 0 0 0 3px #ffffff, 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+    .line-stem {
+      width: 3px;
+      background: #0284c7;
+    }
+  </style>
+</head>
+<body class="bg-slate-200/90 text-slate-800 antialiased selection:bg-amber-100 pb-16">
+
+  <!-- Top Sticky Navigation Bar -->
+  <header class="bg-[#0b1b36] text-white sticky top-0 z-40 border-b border-blue-950/80 shadow-md">
+    <div class="max-w-xl mx-auto px-3 py-2 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+        <span class="text-xs font-bold text-amber-300">รูปแบบอินโฟกราฟิก (Version 2)</span>
+      </div>
+
+      <div class="flex items-center space-x-1.5 no-print">
+        <a href="/map" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-2xs font-bold flex items-center space-x-1 shadow-xs transition" title="ดูแผนที่การ์ตูน 3D">
+          <span class="text-xs">🗺️</span>
+          <span>แผนที่การ์ตูน 3D</span>
+        </a>
+        <a href="/" class="px-2.5 py-1 rounded-lg bg-blue-800/80 hover:bg-blue-700 text-sky-200 text-2xs font-semibold flex items-center space-x-1 border border-blue-700 transition" title="สลับไปแบบการ์ดกระชับ">
+          <i data-lucide="layout-grid" class="w-3 h-3"></i>
+          <span>แบบการ์ด</span>
+        </a>
+        <a href="/admin" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-2xs font-semibold flex items-center space-x-1 transition" title="ระบบหลังบ้าน">
+          <i data-lucide="settings" class="w-3 h-3"></i>
+          <span>หลังบ้าน</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Poster Container -->
+  <main class="max-w-xl mx-auto px-2.5 py-3 space-y-3">
+
+    <!-- Poster Card Container -->
+    <div class="bg-white rounded-2xl shadow-md border border-slate-300 overflow-hidden">
+
+      <!-- Poster Top Header (Inspired by 28 บ่าย.jpg) -->
+      <div class="bg-gradient-to-b from-[#071d49] via-[#0d2a63] to-[#091f4d] text-white p-5 text-center relative overflow-hidden border-b-4 border-amber-400">
+        <!-- Ambient lighting -->
+        <div class="absolute -top-12 -left-12 w-40 h-40 bg-sky-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-12 -right-12 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 space-y-2">
+          <!-- Calendar icon in square badge -->
+          <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md text-amber-300 shadow-inner mb-0.5">
+            <i data-lucide="calendar-check" class="w-6 h-6"></i>
+          </div>
+
+          <!-- Big Title -->
+          <h1 class="text-xl sm:text-2xl font-black tracking-wide text-white drop-shadow-sm">
+            กำหนดการ
+          </h1>
+          <h2 class="text-xs sm:text-sm font-semibold text-sky-200 leading-snug px-2">
+            การตรวจติดตามผลการดำเนินงานโครงการก่อสร้าง<br class="hidden sm:inline"> และประชุมตรวจเยี่ยมหน่วยงาน
+          </h2>
+
+          <!-- Golden Pill: ผส.จด. -->
+          <div class="pt-1">
+            <span class="inline-block px-4 py-1 rounded-full banner-gold font-black text-xs sm:text-sm tracking-wide shadow-md">
+              ของ ผส.จด. สำนักงานจัดรูปที่ดินกลาง (สจด.)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Date Switcher Tabs (Blue Banner Pills) -->
+      <div class="p-3 bg-slate-100 border-b border-slate-200 no-print">
+        <div class="grid grid-cols-2 gap-2" id="v2DaysTabs">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Current Date Indicator Banner -->
+      <div class="bg-[#0e2754] text-white px-4 py-2.5 flex items-center justify-between border-b border-blue-900">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="calendar" class="w-4 h-4 text-amber-400 shrink-0"></i>
+          <span id="v2CurrentDayTitle" class="text-xs sm:text-sm font-bold text-amber-300">วันอังคารที่ 27 ตุลาคม 2569</span>
+        </div>
+        <div class="text-2xs text-sky-200 bg-white/10 px-2 py-0.5 rounded-full border border-white/20">
+          เริ่ม <span id="v2StartTime" class="font-bold text-white">08:30</span> น.
+        </div>
+      </div>
+
+      <!-- Infographic Timeline Stem & Nodes Feed -->
+      <div class="p-3 sm:p-5 relative" id="v2TimelineFeed">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- End of Mission Banner -->
+      <div class="bg-gradient-to-r from-blue-950 via-slate-900 to-blue-950 text-white p-3 text-center border-t border-slate-200">
+        <div class="flex items-center justify-center space-x-1.5 text-xs font-bold text-emerald-400">
+          <i data-lucide="check-circle" class="w-4 h-4"></i>
+          <span>เสร็จสิ้นภารกิจการตรวจราชการ สจด.</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Quick Utilities -->
+    <div class="text-center text-2xs text-slate-500 pt-2 flex items-center justify-center space-x-3 no-print">
+      <button onclick="window.print()" class="hover:text-blue-700 flex items-center space-x-1">
+        <i data-lucide="printer" class="w-3 h-3"></i>
+        <span>พิมพ์หน้านี้</span>
+      </button>
+      <span>•</span>
+      <a href="/" class="hover:text-blue-700 flex items-center space-x-1 font-semibold text-blue-600">
+        <i data-lucide="smartphone" class="w-3 h-3"></i>
+        <span>สลับดูแบบการ์ดมือถือกึ่งกระชับ</span>
+      </a>
+    </div>
+
+  </main>
+
+  <!-- JavaScript -->
+  <script src="/js/v2.js"></script>
+</body>
+</html>
