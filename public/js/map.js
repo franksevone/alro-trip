@@ -79,6 +79,17 @@ function getCartoonInfo(stopId, category, title = '') {
 // Fetch itinerary
 async function loadMapData() {
   try {
+    // 1. Check localStorage first if updated locally
+    const localSaved = localStorage.getItem('alro_itinerary_custom');
+    if (localSaved) {
+      try {
+        itineraryData = JSON.parse(localSaved);
+        renderDay1();
+        renderDay2();
+        return;
+      } catch (e) {}
+    }
+
     let res = null;
     const candidatePaths = ['api/itinerary', './data/itinerary.json', 'data/itinerary.json', '/data/itinerary.json'];
     for (const p of candidatePaths) {

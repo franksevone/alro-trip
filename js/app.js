@@ -56,6 +56,18 @@ function getCategoryInfo(catKey) {
 // Fetch itinerary data
 async function loadItinerary() {
   try {
+    // 1. Check localStorage first if updated locally
+    const localSaved = localStorage.getItem('alro_itinerary_custom');
+    if (localSaved) {
+      try {
+        itineraryData = JSON.parse(localSaved);
+        renderEventHeader();
+        renderDaysTabs();
+        renderCurrentDay();
+        return;
+      } catch (e) {}
+    }
+
     let res = null;
     const candidatePaths = ['api/itinerary', './data/itinerary.json', 'data/itinerary.json', '/data/itinerary.json'];
     for (const p of candidatePaths) {
