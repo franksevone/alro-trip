@@ -142,31 +142,31 @@ function formatRichText(text, theme = 'amber') {
 // Fetch itinerary data
 async function loadItinerary() {
   try {
-    // 1. Check localStorage first if updated locally
-    const localSaved = localStorage.getItem('alro_itinerary_custom');
-    if (localSaved) {
-      try {
-        itineraryData = JSON.parse(localSaved);
-        renderEventHeader();
-        renderDaysTabs();
-        renderCurrentDay();
-        return;
-      } catch (e) {}
-    }
-
     let res = null;
-    const candidatePaths = ['api/itinerary', './data/itinerary.json', 'data/itinerary.json', '/data/itinerary.json'];
+    const candidatePaths = ['/api/itinerary', 'api/itinerary', './data/itinerary.json', 'data/itinerary.json', '/data/itinerary.json'];
     for (const p of candidatePaths) {
       try {
-        const r = await fetch(p);
+        const r = await fetch(p + '?t=' + Date.now());
         if (r && r.ok) {
           res = r;
           break;
         }
       } catch (e) {}
     }
-    if (!res || !res.ok) throw new Error('ไม่สามารถโหลดข้อมูลกำหนดการได้');
-    itineraryData = await res.json();
+
+    if (res && res.ok) {
+      itineraryData = await res.json();
+      try { localStorage.setItem('alro_itinerary_custom', JSON.stringify(itineraryData)); } catch (e) {}
+    } else {
+      // Fallback to localStorage if offline
+      const localSaved = localStorage.getItem('alro_itinerary_custom');
+      if (localSaved) {
+        itineraryData = JSON.parse(localSaved);
+      } else {
+        throw new Error('ไม่สามารถโหลดข้อมูลกำหนดการได้');
+      }
+    }
+
     renderEventHeader();
     renderDaysTabs();
     renderCurrentDay();

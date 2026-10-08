@@ -52,6 +52,10 @@ app.post('/api/itinerary', (req, res) => {
     }
     // Write formatted JSON
     fs.writeFileSync(DATA_FILE, JSON.stringify(newData, null, 2), 'utf8');
+    const publicDataFile = path.join(__dirname, 'public', 'data', 'itinerary.json');
+    if (fs.existsSync(path.dirname(publicDataFile))) {
+      fs.writeFileSync(publicDataFile, JSON.stringify(newData, null, 2), 'utf8');
+    }
     res.json({ success: true, message: 'บันทึกข้อมูลกำหนดการเรียบร้อยแล้ว' });
   } catch (error) {
     console.error('Error writing itinerary:', error);

@@ -104,32 +104,31 @@ function recalculateCurrentDayTimeline() {
 // Load data
 async function loadData() {
   try {
-    // Check if localStorage has saved custom data
-    const localSaved = localStorage.getItem('alro_itinerary_custom');
-    if (localSaved) {
-      try {
-        itineraryData = JSON.parse(localSaved);
-        populateGlobalSettings();
-        renderDayTabs();
-        populateCurrentDay();
-        setDirty(false);
-        return;
-      } catch (e) {}
-    }
-
     let res = null;
-    const candidatePaths = ['api/itinerary', './data/itinerary.json', 'data/itinerary.json', '/data/itinerary.json'];
+    const candidatePaths = ['/api/itinerary', 'api/itinerary', './data/itinerary.json', 'data/itinerary.json', '/data/itinerary.json'];
     for (const p of candidatePaths) {
       try {
-        const r = await fetch(p);
+        const r = await fetch(p + '?t=' + Date.now());
         if (r && r.ok) {
           res = r;
           break;
         }
       } catch (e) {}
     }
-    if (!res || !res.ok) throw new Error('ไม่สามารถโหลดข้อมูลกำหนดการได้');
-    itineraryData = await res.json();
+
+    if (res && res.ok) {
+      itineraryData = await res.json();
+      try { localStorage.setItem('alro_itinerary_custom', JSON.stringify(itineraryData)); } catch (e) {}
+    } else {
+      // Fallback to localStorage if offline
+      const localSaved = localStorage.getItem('alro_itinerary_custom');
+      if (localSaved) {
+        itineraryData = JSON.parse(localSaved);
+      } else {
+        throw new Error('ไม่สามารถโหลดข้อมูลกำหนดการได้');
+      }
+    }
+
     populateGlobalSettings();
     renderDayTabs();
     populateCurrentDay();
@@ -152,15 +151,19 @@ async function saveData() {
     }
 
     // Always backup to localStorage
-    localStorage.setItem('alro_itinerary_custom', JSON.stringify(itineraryData));
+    try { localStorage.setItem('alro_itinerary_custom', JSON.stringify(itineraryData)); } catch(e) {}
 
-    try {
-      await fetch('api/itinerary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(itineraryData)
-      });
-    } catch (e) {}
+    const saveEndpoints = ['/api/itinerary', 'api/itinerary'];
+    for (const ep of saveEndpoints) {
+      try {
+        const r = await fetch(ep, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(itineraryData)
+        });
+        if (r && r.ok) break;
+      } catch (e) {}
+    }
 
     showToast('บันทึกข้อมูลเรียบร้อยแล้ว!');
     setDirty(false);
