@@ -165,6 +165,19 @@ function formatRichText(text, theme = 'amber') {
 // Fetch itinerary
 async function loadMapData() {
   try {
+    // 1. Try Supabase Cloud Database first
+    if (typeof fetchItineraryFromSupabase === 'function') {
+      const supaData = await fetchItineraryFromSupabase();
+      if (supaData && supaData.days && supaData.days.length > 0) {
+        itineraryData = supaData;
+        try { localStorage.setItem('alro_itinerary_custom', JSON.stringify(itineraryData)); } catch (e) {}
+        renderDay1();
+        renderDay2();
+        return;
+      }
+    }
+
+    // 2. Fallback to API / static JSON files
     let res = null;
     const candidatePaths = ['/api/itinerary', 'api/itinerary', './data/itinerary.json', 'data/itinerary.json', '/data/itinerary.json'];
     for (const p of candidatePaths) {

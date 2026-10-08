@@ -142,6 +142,20 @@ function formatRichText(text, theme = 'amber') {
 // Fetch itinerary data
 async function loadItinerary() {
   try {
+    // 1. Try Supabase Cloud Database first (Centralized real-time store)
+    if (typeof fetchItineraryFromSupabase === 'function') {
+      const supaData = await fetchItineraryFromSupabase();
+      if (supaData && supaData.days && supaData.days.length > 0) {
+        itineraryData = supaData;
+        try { localStorage.setItem('alro_itinerary_custom', JSON.stringify(itineraryData)); } catch (e) {}
+        renderEventHeader();
+        renderDaysTabs();
+        renderCurrentDay();
+        return;
+      }
+    }
+
+    // 2. Fallback to API / static JSON files
     let res = null;
     const candidatePaths = ['/api/itinerary', 'api/itinerary', './data/itinerary.json', 'data/itinerary.json', '/data/itinerary.json'];
     for (const p of candidatePaths) {

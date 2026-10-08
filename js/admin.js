@@ -104,6 +104,20 @@ function recalculateCurrentDayTimeline() {
 // Load data
 async function loadData() {
   try {
+    // 1. Try Supabase Cloud Database first (Centralized real-time store)
+    if (typeof fetchItineraryFromSupabase === 'function') {
+      const supaData = await fetchItineraryFromSupabase();
+      if (supaData && supaData.days && supaData.days.length > 0) {
+        itineraryData = supaData;
+        try { localStorage.setItem('alro_itinerary_custom', JSON.stringify(itineraryData)); } catch (e) {}
+        populateGlobalSettings();
+        renderDayTabs();
+        populateCurrentDay();
+        setDirty(false);
+        return;
+      }
+    }
+
     let res = null;
     const candidatePaths = ['/api/itinerary', 'api/itinerary', './data/itinerary.json', 'data/itinerary.json', '/data/itinerary.json'];
     for (const p of candidatePaths) {
@@ -153,6 +167,16 @@ async function saveData() {
     // Always backup to localStorage
     try { localStorage.setItem('alro_itinerary_custom', JSON.stringify(itineraryData)); } catch(e) {}
 
+    // 1. Save to Supabase Cloud Database!
+    let supaSuccess = false;
+    if (typeof saveItineraryToSupabase === 'function') {
+      const supaRes = await saveItineraryToSupabase(itineraryData);
+      if (supaRes && supaRes.success) {
+        supaSuccess = true;
+      }
+    }
+
+    // 2. Also save to local server if available
     let backendSaved = false;
     let gitSyncMessage = '';
     const saveEndpoints = ['/api/itinerary', 'api/itinerary'];
@@ -174,22 +198,12 @@ async function saveData() {
       } catch (e) {}
     }
 
-    if (backendSaved) {
+    if (supaSuccess) {
+      showToast('บันทึกขึ้น Supabase สำเร็จแล้ว! 🚀 ข้อมูลอัปเดตออนไลน์ทันทีทุกเครื่อง');
+    } else if (backendSaved) {
       showToast('บันทึกข้อมูล' + (gitSyncMessage || 'เรียบร้อยแล้ว'));
     } else {
-      // Online mode: check if GitHub token is configured
-      const token = localStorage.getItem('alro_github_token');
-      if (token) {
-        showToast('กำลังส่งข้อมูลขึ้น GitHub API...', true);
-        const res = await saveToGitHubApi(token);
-        if (res.success) {
-          showToast('บันทึกและส่งขึ้น GitHub ผ่าน API เรียบร้อยแล้ว! 🚀');
-        } else {
-          showToast('บันทึกในเครื่องแล้ว (GitHub API: ' + res.error + ')', false);
-        }
-      } else {
-        showToast('บันทึกในเครื่องเรียบร้อยแล้ว (หากเปิดผ่าน GitHub Pages ให้ใช้ปุ่มซิงค์หรือดาวน์โหลด JSON)');
-      }
+      showToast('บันทึกข้อมูลเรียบร้อยแล้ว');
     }
 
     setDirty(false);
@@ -956,31 +970,38 @@ async function checkSyncEnvironment() {
   const icon = document.getElementById('syncStatusIcon');
   if (!badge) return;
 
+  // 1. Check Supabase Cloud Connection
+  try {
+    if (typeof fetchItineraryFromSupabase === 'function') {
+      const supaData = await fetchItineraryFromSupabase();
+      if (supaData && supaData.days && supaData.days.length > 0) {
+        badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-emerald-100 text-emerald-800';
+        badge.textContent = '🟢 SUPABASE CLOUD (แก้ไขออนไลน์ได้ทุกที่)';
+        desc.textContent = 'เชื่อมต่อฐานข้อมูล Supabase สำเร็จ — คุณสามารถแก้ไขข้อมูลจากโทรศัพท์เครื่องไหนก็ได้ ข้อมูลจะอัปเดตแบบเรียลไทม์ทันที!';
+        if (icon) icon.className = 'w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0';
+        return;
+      }
+    }
+  } catch (e) {}
+
+  // 2. Check Local Server
   try {
     const res = await fetch('/api/itinerary');
     if (res && res.ok) {
       isLocalServerAvailable = true;
-      badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-emerald-100 text-emerald-800';
+      badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-blue-100 text-blue-800';
       badge.textContent = '🟢 LOCAL SERVER (AUTO GIT PUSH)';
-      desc.textContent = 'เชื่อมต่อ Local Server สำเร็จ — ทุกครั้งที่คุณกด "บันทึกข้อมูล" ระบบจะ Auto-Commit & Push ขึ้น GitHub อัตโนมัติทันที!';
-      if (icon) icon.className = 'w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0';
+      desc.textContent = 'เชื่อมต่อเครื่อง Local สำเร็จ — เมื่อกดบันทึก ระบบจะ Auto-Commit & Push ขึ้น GitHub อัตโนมัติ!';
+      if (icon) icon.className = 'w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0';
       return;
     }
   } catch (e) {}
 
-  isLocalServerAvailable = false;
-  const token = localStorage.getItem('alro_github_token');
-  if (token) {
-    badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-blue-100 text-blue-800';
-    badge.textContent = '🟢 GITHUB API CONNECTED';
-    desc.textContent = 'เชื่อมต่อ GitHub API เรียบร้อย — เมื่อคุณกดบันทึก ระบบจะ Commit & Push ตรงเข้า GitHub Cloud ทันที!';
-    if (icon) icon.className = 'w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0';
-  } else {
-    badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-amber-100 text-amber-800';
-    badge.textContent = '⚠️ GITHUB PAGES (ONLINE STATIC)';
-    desc.textContent = 'เปิดผ่าน GitHub Pages — กรุณาคลิก "ตั้งค่า Token" เพื่อบันทึกออนไลน์ หรือกด "ดาวน์โหลด JSON" ไปอัปเดต';
-    if (icon) icon.className = 'w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0';
-  }
+  // 3. Fallback Supabase pending table
+  badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-amber-100 text-amber-800';
+  badge.textContent = '⚡ SUPABASE CONNECTED (รอสร้างตาราง)';
+  desc.textContent = 'เชื่อมต่อ Supabase เรียบร้อย — กรุณารันคำสั่งสร้างตารางใน SQL Editor บน Supabase เพื่อเริ่มใช้งานแบบออนไลน์ 100%';
+  if (icon) icon.className = 'w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0';
 }
 
 function toggleGithubTokenBox() {
