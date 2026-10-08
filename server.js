@@ -3,6 +3,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,22 +45,66 @@ app.get('/api/itinerary', (req, res) => {
   }
 });
 
-app.post('/api/itinerary', (req, res) => {
+// Helper to auto-commit and push to GitHub
+function runGitSync() {
+  return new Promise((resolve) => {
+    exec('git status --porcelain data/itinerary.json public/data/itinerary.json', { cwd: __dirname }, (sErr, sOut) => {
+      if (!sOut || sOut.trim().length === 0) {
+        return resolve({ success: true, message: 'ข้อมูลตรงกับ GitHub ล่าสุดอยู่แล้ว' });
+      }
+      const cmd = 'git add data/itinerary.json public/data/itinerary.json && git commit -m "Auto-update itinerary data from Admin panel" && git push origin main && git push origin gh-pages';
+      exec(cmd, { cwd: __dirname }, (error, stdout, stderr) => {
+        if (error) {
+          console.log('Git sync error:', stderr || error.message);
+          resolve({ success: false, message: stderr || error.message });
+        } else {
+          console.log('Git push success:\n', stdout);
+          resolve({ success: true, message: 'ส่งข้อมูลขึ้น GitHub เรียบร้อยแล้ว! 🚀', stdout });
+        }
+      });
+    });
+  });
+}
+
+app.post('/api/itinerary', async (req, res) => {
   try {
     const newData = req.body;
     if (!newData || !newData.days) {
       return res.status(400).json({ error: 'รูปแบบข้อมูลไม่ถูกต้อง (ต้องมีรายการ days)' });
     }
-    // Write formatted JSON
+    // Write formatted JSON to local files
     fs.writeFileSync(DATA_FILE, JSON.stringify(newData, null, 2), 'utf8');
     const publicDataFile = path.join(__dirname, 'public', 'data', 'itinerary.json');
     if (fs.existsSync(path.dirname(publicDataFile))) {
       fs.writeFileSync(publicDataFile, JSON.stringify(newData, null, 2), 'utf8');
     }
-    res.json({ success: true, message: 'บันทึกข้อมูลกำหนดการเรียบร้อยแล้ว' });
+
+    // Auto Git Push in background
+    let gitResult = { success: false, message: 'Skipped' };
+    try {
+      gitResult = await runGitSync();
+    } catch (gErr) {
+      console.error('Git sync error:', gErr);
+    }
+
+    res.json({
+      success: true,
+      message: gitResult.success ? 'บันทึกข้อมูลและส่งขึ้น GitHub เรียบร้อยแล้ว! 🚀' : 'บันทึกข้อมูลเรียบร้อยแล้ว',
+      gitSync: gitResult.success,
+      gitMessage: gitResult.message
+    });
   } catch (error) {
     console.error('Error writing itinerary:', error);
     res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message });
+  }
+});
+
+app.post('/api/git-sync', async (req, res) => {
+  try {
+    const result = await runGitSync();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

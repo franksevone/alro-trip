@@ -153,6 +153,8 @@ async function saveData() {
     // Always backup to localStorage
     try { localStorage.setItem('alro_itinerary_custom', JSON.stringify(itineraryData)); } catch(e) {}
 
+    let backendSaved = false;
+    let gitSyncMessage = '';
     const saveEndpoints = ['/api/itinerary', 'api/itinerary'];
     for (const ep of saveEndpoints) {
       try {
@@ -161,13 +163,38 @@ async function saveData() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(itineraryData)
         });
-        if (r && r.ok) break;
+        if (r && r.ok) {
+          const resData = await r.json();
+          backendSaved = true;
+          if (resData.gitSync) {
+            gitSyncMessage = ' และส่งขึ้น GitHub เรียบร้อยแล้ว! 🚀';
+          }
+          break;
+        }
       } catch (e) {}
     }
 
-    showToast('บันทึกข้อมูลเรียบร้อยแล้ว!');
+    if (backendSaved) {
+      showToast('บันทึกข้อมูล' + (gitSyncMessage || 'เรียบร้อยแล้ว'));
+    } else {
+      // Online mode: check if GitHub token is configured
+      const token = localStorage.getItem('alro_github_token');
+      if (token) {
+        showToast('กำลังส่งข้อมูลขึ้น GitHub API...', true);
+        const res = await saveToGitHubApi(token);
+        if (res.success) {
+          showToast('บันทึกและส่งขึ้น GitHub ผ่าน API เรียบร้อยแล้ว! 🚀');
+        } else {
+          showToast('บันทึกในเครื่องแล้ว (GitHub API: ' + res.error + ')', false);
+        }
+      } else {
+        showToast('บันทึกในเครื่องเรียบร้อยแล้ว (หากเปิดผ่าน GitHub Pages ให้ใช้ปุ่มซิงค์หรือดาวน์โหลด JSON)');
+      }
+    }
+
     setDirty(false);
     renderStops();
+    checkSyncEnvironment();
   } catch (error) {
     showToast('บันทึกไม่สำเร็จ: ' + error.message, false);
   }
@@ -920,14 +947,195 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+// GitHub Sync Integration & Status
+let isLocalServerAvailable = false;
+
+async function checkSyncEnvironment() {
+  const badge = document.getElementById('syncStatusBadge');
+  const desc = document.getElementById('syncStatusDesc');
+  const icon = document.getElementById('syncStatusIcon');
+  if (!badge) return;
+
+  try {
+    const res = await fetch('/api/itinerary');
+    if (res && res.ok) {
+      isLocalServerAvailable = true;
+      badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-emerald-100 text-emerald-800';
+      badge.textContent = '🟢 LOCAL SERVER (AUTO GIT PUSH)';
+      desc.textContent = 'เชื่อมต่อ Local Server สำเร็จ — ทุกครั้งที่คุณกด "บันทึกข้อมูล" ระบบจะ Auto-Commit & Push ขึ้น GitHub อัตโนมัติทันที!';
+      if (icon) icon.className = 'w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0';
+      return;
+    }
+  } catch (e) {}
+
+  isLocalServerAvailable = false;
+  const token = localStorage.getItem('alro_github_token');
+  if (token) {
+    badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-blue-100 text-blue-800';
+    badge.textContent = '🟢 GITHUB API CONNECTED';
+    desc.textContent = 'เชื่อมต่อ GitHub API เรียบร้อย — เมื่อคุณกดบันทึก ระบบจะ Commit & Push ตรงเข้า GitHub Cloud ทันที!';
+    if (icon) icon.className = 'w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center shrink-0';
+  } else {
+    badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-amber-100 text-amber-800';
+    badge.textContent = '⚠️ GITHUB PAGES (ONLINE STATIC)';
+    desc.textContent = 'เปิดผ่าน GitHub Pages — กรุณาคลิก "ตั้งค่า Token" เพื่อบันทึกออนไลน์ หรือกด "ดาวน์โหลด JSON" ไปอัปเดต';
+    if (icon) icon.className = 'w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0';
+  }
+}
+
+function toggleGithubTokenBox() {
+  const box = document.getElementById('githubTokenBox');
+  if (box) {
+    box.classList.toggle('hidden');
+    const input = document.getElementById('inputGithubToken');
+    if (input && !box.classList.contains('hidden')) {
+      input.value = localStorage.getItem('alro_github_token') || '';
+      input.focus();
+    }
+  }
+}
+
+function saveGithubToken() {
+  const input = document.getElementById('inputGithubToken');
+  if (!input) return;
+  const token = input.value.trim();
+  if (token) {
+    localStorage.setItem('alro_github_token', token);
+    showToast('บันทึก GitHub Token เรียบร้อยแล้ว! 🔑');
+    toggleGithubTokenBox();
+  } else {
+    localStorage.removeItem('alro_github_token');
+    showToast('ลบ GitHub Token เรียบร้อยแล้ว');
+  }
+  checkSyncEnvironment();
+}
+
+function downloadItineraryFile() {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(itineraryData, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", "itinerary.json");
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+  showToast('ดาวน์โหลดไฟล์ itinerary.json เรียบร้อยแล้ว! 📥');
+}
+
+async function triggerGitSync() {
+  if (isLocalServerAvailable) {
+    showToast('กำลังสั่งซิงค์ขึ้น GitHub...', true);
+    try {
+      const res = await fetch('/api/git-sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message || 'ซิงค์ขึ้น GitHub เรียบร้อยแล้ว! 🚀');
+      } else {
+        showToast('การซิงค์: ' + (data.message || data.error), false);
+      }
+    } catch (err) {
+      showToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ Local ได้: ' + err.message, false);
+    }
+  } else {
+    const token = localStorage.getItem('alro_github_token');
+    if (token) {
+      showToast('กำลังส่งข้อมูลขึ้น GitHub API...', true);
+      const res = await saveToGitHubApi(token);
+      if (res.success) {
+        showToast('ซิงค์ขึ้น GitHub ผ่าน API เรียบร้อยแล้ว! 🚀');
+      } else {
+        showToast('GitHub API Error: ' + res.error, false);
+      }
+    } else {
+      toggleGithubTokenBox();
+      showToast('กรุณากรอก GitHub Token หรือเปิดผ่าน Local Server');
+    }
+  }
+}
+
+async function saveToGitHubApi(token) {
+  const owner = 'franksevone';
+  const repo = 'alro-trip';
+  const filesToUpdate = ['data/itinerary.json', 'public/data/itinerary.json'];
+  const jsonContent = JSON.stringify(itineraryData, null, 2);
+  const b64Content = btoa(unescape(encodeURIComponent(jsonContent)));
+
+  for (const filePath of filesToUpdate) {
+    try {
+      // 1. Get current file sha on main
+      const getUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=main`;
+      const getRes = await fetch(getUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+      let sha = '';
+      if (getRes.ok) {
+        const fileData = await getRes.json();
+        sha = fileData.sha;
+      }
+
+      // 2. Put file to main branch
+      const putRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json'
+        },
+        body: JSON.stringify({
+          message: `Update ${filePath} from Admin Web App`,
+          content: b64Content,
+          sha: sha || undefined,
+          branch: 'main'
+        })
+      });
+
+      if (!putRes.ok) {
+        const err = await putRes.json();
+        return { success: false, error: err.message || 'PUT failed' };
+      }
+
+      // 3. Also update gh-pages branch
+      try {
+        const getGhPages = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=gh-pages`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (getGhPages.ok) {
+          const ghPagesData = await getGhPages.json();
+          await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: `Update ${filePath} from Admin Web App`,
+              content: b64Content,
+              sha: ghPagesData.sha,
+              branch: 'gh-pages'
+            })
+          });
+        }
+      } catch (e) {}
+
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+  return { success: true };
+}
+
 // Explicit global exposure
 window.pressPin = pressPin;
 window.backspacePin = backspacePin;
 window.clearPin = clearPin;
 window.lockAdmin = lockAdmin;
+window.toggleGithubTokenBox = toggleGithubTokenBox;
+window.saveGithubToken = saveGithubToken;
+window.downloadItineraryFile = downloadItineraryFile;
+window.triggerGitSync = triggerGitSync;
 
 // Initial Boot
 document.addEventListener('DOMContentLoaded', () => {
   checkAuthStatus();
   loadData();
+  checkSyncEnvironment();
 });
