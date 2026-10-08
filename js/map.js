@@ -76,6 +76,92 @@ function getCartoonInfo(stopId, category, title = '') {
   return { icon: '📍', bg: 'from-slate-100 to-blue-100', shortTitle: title };
 }
 
+// Helper to escape HTML
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Smart multiline & topic formatter
+function formatRichText(text, theme = 'amber') {
+  if (!text) return '';
+
+  // Normalize all line break types
+  let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // If text has inline bullets like " -หัวข้อ" or " •หัวข้อ", ensure they break into new lines
+  normalized = normalized.replace(/([^\n])\s*([•\-*]|\d+\.)\s+/g, '$1\n$2 ');
+  // Handle hyphen glued to word, e.g. "ราชการ -อุโบสถ"
+  normalized = normalized.replace(/([^\n\s])\s*[-•]([^\s])/g, '$1\n- $2');
+
+  const lines = normalized.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  if (lines.length === 0) return '';
+
+  const bulletIcon = theme === 'amber' ? '🔸' : '🔹';
+  const bulletDot = theme === 'amber' ? 'text-amber-500' : 'text-blue-500';
+  const titleColor = theme === 'amber' ? 'text-amber-900' : 'text-slate-900';
+  const textColor = theme === 'amber' ? 'text-amber-950' : 'text-slate-800';
+
+  let html = '<div class="space-y-1.5 pt-0.5">';
+
+  lines.forEach(line => {
+    // Check if line starts with a bullet: -, •, *, or number 1., 2.
+    const isBulletMatch = line.match(/^([•\-*]|\d+[\.)])\s*(.*)$/);
+    if (isBulletMatch) {
+      const content = isBulletMatch[2];
+      
+      // Check if content has a topic label with colon, e.g. "อุโบสถคอนกรีตเสริมเหล็กสง่างาม: รายละเอียด..."
+      const colonMatch = content.match(/^([^:：]{2,40})[:：]\s*(.*)$/);
+      if (colonMatch) {
+        const topic = colonMatch[1].trim();
+        const detail = colonMatch[2].trim();
+        html += `
+          <div class="flex items-start space-x-1.5 pl-0.5">
+            <span class="shrink-0 mt-0.5 text-xs select-none">${bulletIcon}</span>
+            <div class="${textColor} text-xs leading-relaxed">
+              <strong class="${titleColor} font-bold">${escapeHtml(topic)}:</strong> ${escapeHtml(detail)}
+            </div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="flex items-start space-x-1.5 pl-0.5">
+            <span class="${bulletDot} font-bold shrink-0 mt-0.5 text-xs select-none">•</span>
+            <div class="${textColor} text-xs leading-relaxed">${escapeHtml(content)}</div>
+          </div>
+        `;
+      }
+    } else {
+      // Check if a line without bullet starts with a bold topic with colon e.g. "หัวข้อ: รายละเอียด"
+      const colonMatch = line.match(/^([^:：]{2,30})[:：]\s*(.*)$/);
+      if (colonMatch && !line.includes('http')) {
+        const topic = colonMatch[1].trim();
+        const detail = colonMatch[2].trim();
+        html += `
+          <div class="flex items-start space-x-1.5 pl-0.5">
+            <span class="shrink-0 mt-0.5 text-xs select-none">${bulletIcon}</span>
+            <div class="${textColor} text-xs leading-relaxed">
+              <strong class="${titleColor} font-bold">${escapeHtml(topic)}:</strong> ${escapeHtml(detail)}
+            </div>
+          </div>
+        `;
+      } else {
+        // Regular paragraph (intro text or standard single line)
+        html += `<p class="${textColor} text-xs leading-relaxed font-normal">${escapeHtml(line)}</p>`;
+      }
+    }
+  });
+
+  html += '</div>';
+  return html;
+}
+
 // Fetch itinerary
 async function loadMapData() {
   try {
@@ -188,11 +274,11 @@ function openStopModal(dayIndex, stopIndex) {
   modalTitle.textContent = stop.title;
   modalLocation.textContent = stop.location || 'ตามกำหนดการ';
 
-  modalDescription.textContent = stop.description || '-';
+  modalDescription.innerHTML = formatRichText(stop.description || '-', 'blue');
 
   if (stop.highlights && stop.highlights.trim() !== '') {
     modalHighlightsBox.classList.remove('hidden');
-    modalHighlights.textContent = stop.highlights;
+    modalHighlights.innerHTML = formatRichText(stop.highlights, 'amber');
   } else {
     modalHighlightsBox.classList.add('hidden');
   }

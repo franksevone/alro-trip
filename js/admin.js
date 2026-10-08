@@ -533,9 +533,10 @@ function renderStops() {
 
             <div>
               <label class="block text-xs font-bold text-amber-900 mb-1">✨ สิ่งน่าสนใจ / ไฮไลต์ (Highlights)</label>
-              <textarea rows="2" oninput="updateStopField(${index}, 'highlights', this.value)"
+              <textarea rows="4" oninput="updateStopField(${index}, 'highlights', this.value)"
                 placeholder="จุดเด่นสถานที่ ประวัติ โบราณวัตถุ หรือเมนูอาหารแนะนำ..."
-                class="w-full px-3 py-2 text-xs rounded-xl border border-amber-200 bg-amber-50/40 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">${escapeHtml(stop.highlights || '')}</textarea>
+                class="w-full px-3 py-2 text-xs rounded-xl border border-amber-200 bg-amber-50/40 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-normal leading-relaxed">${escapeHtml(stop.highlights || '')}</textarea>
+              <span class="text-3xs text-amber-700/80 mt-1 block">💡 <strong>วิธีทำหัวข้อย่อย:</strong> สามารถกด Enter ขึ้นบรรทัดใหม่ และใส่ขีด <code>-</code> หรือเลข <code>1. 2.</code> ข้างหน้า เช่น <code>- อุโบสถ: รายละเอียด</code> ระบบจะจัดเป็นหัวข้อย่อยสวยงามให้อัตโนมัติ</span>
             </div>
           </div>
 
