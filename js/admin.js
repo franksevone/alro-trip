@@ -198,12 +198,26 @@ async function saveData() {
       } catch (e) {}
     }
 
+    // Also try GitHub Direct API if token exists
+    let githubApiSaved = false;
+    const ghToken = localStorage.getItem('alro_github_token');
+    if (!supaSuccess && !backendSaved && ghToken) {
+      try {
+        const ghRes = await saveToGitHubApi(ghToken);
+        if (ghRes && ghRes.success) {
+          githubApiSaved = true;
+        }
+      } catch (e) {}
+    }
+
     if (supaSuccess) {
       showToast('บันทึกขึ้น Supabase สำเร็จแล้ว! 🚀 ข้อมูลอัปเดตออนไลน์ทันทีทุกเครื่อง');
+    } else if (githubApiSaved) {
+      showToast('บันทึกและส่งขึ้น GitHub สำเร็จแล้ว! 🚀 อัปเดตออนไลน์แล้ว');
     } else if (backendSaved) {
       showToast('บันทึกข้อมูล' + (gitSyncMessage || 'เรียบร้อยแล้ว'));
     } else {
-      showToast('บันทึกข้อมูลเรียบร้อยแล้ว');
+      showToast('⚠️ บันทึกเฉพาะเครื่องนี้เท่านั้น (ยังไม่ขึ้นออนไลน์) เนื่องจาก Supabase พักการทำงาน (Paused)', false);
     }
 
     setDirty(false);
@@ -997,11 +1011,11 @@ async function checkSyncEnvironment() {
     }
   } catch (e) {}
 
-  // 3. Fallback Supabase pending table
-  badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-amber-100 text-amber-800';
-  badge.textContent = '⚡ SUPABASE CONNECTED (รอสร้างตาราง)';
-  desc.textContent = 'เชื่อมต่อ Supabase เรียบร้อย — กรุณารันคำสั่งสร้างตารางใน SQL Editor บน Supabase เพื่อเริ่มใช้งานแบบออนไลน์ 100%';
-  if (icon) icon.className = 'w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0';
+  // 3. Fallback Supabase paused / connection failed
+  badge.className = 'px-2 py-0.5 rounded-full text-3xs font-bold uppercase bg-rose-100 text-rose-800';
+  badge.textContent = '⏸️ SUPABASE PAUSED (ฐานข้อมูลหยุดชั่วคราว)';
+  desc.innerHTML = 'เชื่อมต่อ Supabase ไม่สำเร็จ (Free Tier จะ Pause อัตโนมัติเมื่อไม่ใช้งานเกิน 7 วัน) — <a href="https://supabase.com/dashboard/project/lyjdyozhzbshffrnigor" target="_blank" class="underline font-bold text-rose-700">คลิกที่นี่เพื่อไปกดปุ่ม Restore Project ใน Supabase</a> หรือใส่ GitHub Token ด้านล่างเพื่อซิงค์ตรง';
+  if (icon) icon.className = 'w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0';
 }
 
 function toggleGithubTokenBox() {
